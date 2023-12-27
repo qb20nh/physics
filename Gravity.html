@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Gravity Simulation</title>
+  <style>
+    html,
+    body {
+      margin: 0px;
+    }
+
+    #canvas {
+      display: block;
+      background-color: black;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+
+  <script src="vector.js"></script>
+  <script src="particle.js"></script>
+
+  <script>
+    window.onload = function() {
+      var canvas = document.getElementById("canvas"),
+        context = canvas.getContext("2d"),
+        width = canvas.width = window.innerWidth,
+        height = canvas.height = window.innerHeight,
+        sun = particle.create(width / 2, height / 2, 0, 0),
+        mercury = particle.create(width / 2 + 160, height / 2, 10, -Math.PI / 2),
+        venus = particle.create(width / 2 + 180, height / 2, 10, -Math.PI / 2),
+        earth = particle.create(width / 2 + 200, height / 2, 10, -Math.PI / 2),
+        mars = particle.create(width / 2 + 220, height / 2, 10, -Math.PI / 2),
+        jupiter = particle.create(width / 2 + 240, height / 2, 10, -Math.PI / 2),
+        saturn = particle.create(width / 2 + 260, height / 2, 10, -Math.PI / 2),
+        uranus = particle.create(width / 2 + 280, height / 2, 10, -Math.PI / 2),
+        neptune = particle.create(width / 2 + 300, height / 2, 10, -Math.PI / 2);
+
+      sun.mass = 20000;
+
+      update();
+
+      function update() {
+        context.clearRect(0, 0, width, height);
+
+        mercury.gravitateTo(sun);
+        venus.gravitateTo(sun);
+        earth.gravitateTo(sun);
+        mars.gravitateTo(sun);
+        jupiter.gravitateTo(sun);
+        saturn.gravitateTo(sun);
+        uranus.gravitateTo(sun);
+        neptune.gravitateTo(sun);
+
+        mercury.update();
+        venus.update();
+        earth.update();
+        mars.update();
+        jupiter.update();
+        saturn.update();
+        uranus.update();
+        neptune.update();
+
+        context.beginPath();
+        context.fillStyle = "yellow";
+        context.arc(sun.position.getX(), sun.position.getY(), 60, 0, Math.PI * 2, false);
+        context.fill();
+
+        drawPlanet(mercury, "gray", "Mercury");
+        drawPlanet(venus, "orange", "Venus");
+        drawPlanet(earth, "blue", "Earth");
+        drawPlanet(mars, "red", "Mars");
+        drawPlanet(jupiter, "tan", "Jupiter");
+        drawPlanet(saturn, "lightyellow", "Saturn");
+        drawPlanet(uranus, "lightblue", "Uranus");
+        drawPlanet(neptune, "darkblue", "Neptune");
+
+        requestAnimationFrame(update);
+      }
+
+      function drawPlanet(planet, color, name) {
+        context.beginPath();
+        context.fillStyle = color;
+        context.arc(planet.position.getX(), planet.position.getY(), 8, 0, Math.PI * 2, false);
+        context.fill();
+        context.font = "12px Arial";
+        context.fillStyle = "white";
+        context.textAlign = "center";
+        context.fillText(name, planet.position.getX(), planet.position.getY() + 20);
+      }
+    };
+  </script>
+</body>
+
+</html>

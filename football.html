@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Football Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #00a74a; /* Green background color */
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #fff; /* White canvas color */
+      border: 5px solid black; /* Black border */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="footballCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById("footballCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Player
+    const player = {
+      x: 50,
+      y: canvas.height / 2,
+      originalX: 50,
+      originalY: canvas.height / 2,
+      radius: 15,
+      speed: 2,
+      acceleration: 0.05,
+      dx: 0,
+      dy: 0,
+      angle: 0,
+      color: "#0000FF", // Blue background
+      outlineColor: "#000", // Black outline
+    };
+
+    // Ball
+    const ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 10,
+      speed: 0,
+      dx: 0,
+      dy: 0,
+      color: "#fff", // White background
+      outlineColor: "#000", // Black outline
+    };
+
+    // Goals
+    const goalWidth = 20;
+    const goalHeight = 100;
+    const leftGoal = { x: 0, y: canvas.height / 2 - goalHeight / 2, width: goalWidth, height: goalHeight };
+    const rightGoal = { x: canvas.width - goalWidth, y: canvas.height / 2 - goalHeight / 2, width: goalWidth, height: goalHeight };
+
+    // Physics
+    const friction = 0.98;
+    const bounce = 0.8;
+    const kickDistance = 40; // Adjust as needed
+
+    // Handle keyboard input
+    const keys = {};
+    window.addEventListener("keydown", (e) => keys[e.key] = true);
+    window.addEventListener("keyup", (e) => keys[e.key] = false);
+
+    // Update function
+    function update() {
+      // Move player
+      if (keys["ArrowUp"] && player.y - player.radius > 0) {
+        player.dy -= player.acceleration;
+        player.angle = -Math.PI / 2; // Up
+      }
+      if (keys["ArrowDown"] && player.y + player.radius < canvas.height) {
+        player.dy += player.acceleration;
+        player.angle = Math.PI / 2; // Down
+      }
+      if (keys["ArrowLeft"] && player.x - player.radius > 0) {
+        player.dx -= player.acceleration;
+        player.angle = Math.PI; // Left
+      }
+      if (keys["ArrowRight"] && player.x + player.radius < canvas.width) {
+        player.dx += player.acceleration;
+        player.angle = 0; // Right
+      }
+
+      // Apply friction to player
+      player.dx *= friction;
+      player.dy *= friction;
+
+      // Move player
+      player.x += player.dx;
+      player.y += player.dy;
+
+      // Rotate player smoothly
+      player.angle = Math.atan2(player.dy, player.dx);
+      player.angle += (0 - player.angle) * 0.1;
+
+      // Kick the ball
+      if (keys[" "]) {
+        // Check distance between player and ball
+        const dx = ball.x - player.x;
+        const dy = ball.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Kick only if the player is close to the ball
+        if (distance < kickDistance) {
+          // Set the ball in motion
+          const angle = Math.atan2(ball.y - player.y, ball.x - player.x);
+          ball.dx = Math.cos(angle);
+          ball.dy = Math.sin(angle);
+          ball.speed = 5;
+        }
+      }
+
+      // Move ball
+      ball.x += ball.speed * ball.dx;
+      ball.y += ball.speed * ball.dy;
+
+      // Ball collision with walls
+      if (ball.y - ball.radius < 0) {
+        ball.y = ball.radius;
+        ball.dy *= -bounce;
+        ball.speed *= friction;
+      } else if (ball.y + ball.radius > canvas.height) {
+        ball.y = canvas.height - ball.radius;
+        ball.dy *= -bounce;
+        ball.speed *= friction;
+      }
+
+      if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius;
+        ball.dx *= -bounce;
+        ball.speed *= friction;
+      } else if (ball.x + ball.radius > canvas.width) {
+        ball.x = canvas.width - ball.radius;
+        ball.dx *= -bounce;
+        ball.speed *= friction;
+      }
+
+      // Ball collision with player
+      const dx = ball.x - player.x;
+      const dy = ball.y - player.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < ball.radius + player.radius) {
+        const angle = Math.atan2(dy, dx);
+        const sin = Math.sin(angle);
+        const cos = Math.cos(angle);
+
+        // Rotate velocities
+        const vx1 = cos * player.speed;
+        const vy1 = sin * player.speed;
+        const vx2 = cos * ball.speed;
+        const vy2 = sin * ball.speed;
+
+        // Apply new velocities
+        ball.dx = vx1;
+        ball.dy = vy1;
+        ball.speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+      }
+
+      // Ball collision with goals
+      if (
+        (ball.x - ball.radius < leftGoal.x + leftGoal.width && ball.y > leftGoal.y && ball.y < leftGoal.y + leftGoal.height) ||
+        (ball.x + ball.radius > rightGoal.x && ball.y > rightGoal.y && ball.y < rightGoal.y + rightGoal.height)
+      ) {
+        resetGame();
+      }
+    }
+
+    // Draw function
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw field
+      ctx.fillStyle = "#00a74a"; // Green
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw goals
+      ctx.fillStyle = "#fff"; // White
+      ctx.fillRect(leftGoal.x, leftGoal.y, leftGoal.width, leftGoal.height);
+      ctx.fillRect(rightGoal.x, rightGoal.y, rightGoal.width, rightGoal.height);
+
+      // Draw player
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(player.angle);
+      ctx.fillStyle = player.color;
+      ctx.strokeStyle = player.outlineColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw ball
+      ctx.fillStyle = ball.color;
+      ctx.strokeStyle = ball.outlineColor;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Reset game function
+    function resetGame() {
+      resetBall();
+      resetPlayer();
+    }
+
+    // Reset ball function
+    function resetBall() {
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+      ball.speed = 0;
+      ball.dx = 0;
+      ball.dy = 0;
+    }
+
+    // Reset player function
+    function resetPlayer() {
+      player.x = player.originalX;
+      player.y = player.originalY;
+      player.dx = 0;
+      player.dy = 0;
+    }
+
+    // Game loop
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start the game loop
+    gameLoop();
+  </script>
+</body>
+</html>

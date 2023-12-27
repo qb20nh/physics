@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Fireworks Display</title>
+    <style type="text/css">
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+    <script>
+        window.onload = function () {
+            var canvas = document.getElementById("canvas"),
+                context = canvas.getContext("2d"),
+                width = canvas.width = window.innerWidth,
+                height = canvas.height = window.innerHeight,
+                fireworks = [],
+                particles = [],
+                gravity = 0.05;
+
+            function createFirework() {
+                var firework = {
+                    x: Math.random() * width,
+                    y: height,
+                    vx: Math.random() * 4 - 3,
+                    vy: Math.random() * -6 - 5,
+                    size: Math.random() * 2 + 1,
+                    color: getRandomColor(),
+                    particles: []
+                };
+
+                fireworks.push(firework);
+            }
+
+            function getRandomColor() {
+                var letters = "0123456789ABCDEF";
+                var color = "#";
+                for (var i = 0; i < 6; i++) {
+                    color += letters[Math.floor(Math.random() * 16)];
+                }
+                return color;
+            }
+
+            function createParticle(x, y, color, vx, vy) {
+                var particle = {
+                    x: x,
+                    y: y,
+                    vx: vx,
+                    vy: vy,
+                    color: color,
+                    size: Math.random() * 2 + 1,
+                    alpha: 1,
+                    decay: Math.random() * 0.015 + 0.01
+                };
+                particles.push(particle);
+            }
+
+            function update() {
+                context.fillStyle = "rgba(0, 0, 0, 0.1)";
+                context.fillRect(0, 0, width, height);
+
+                for (var i = 0; i < fireworks.length; i++) {
+                    var firework = fireworks[i];
+
+                    firework.vx *= 0.99;
+                    firework.vy += gravity;
+                    firework.x += firework.vx;
+                    firework.y += firework.vy;
+
+                    if (firework.vy >= 0) {
+                        explodeFirework(firework);
+                        fireworks.splice(i, 1);
+                    } else {
+                        context.beginPath();
+                        context.fillStyle = firework.color;
+                        context.arc(firework.x, firework.y, firework.size, 0, Math.PI * 2);
+                        context.fill();
+                    }
+                }
+
+                for (var i = 0; i < particles.length; i++) {
+                    var particle = particles[i];
+                    particle.vx *= 0.99;
+                    particle.vy += gravity;
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.alpha -= particle.decay;
+                    particle.size *= 0.99;
+
+                    if (particle.alpha <= 0 || particle.size < 0.1) {
+                        particles.splice(i, 1);
+                    } else {
+                        context.beginPath();
+                        context.fillStyle = particle.color;
+                        context.globalAlpha = particle.alpha;
+                        context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                        context.fill();
+                    }
+                }
+
+                // Create new fireworks randomly
+                if (Math.random() < Math.random() / 8) {
+                    createFirework();
+                }
+
+                requestAnimationFrame(update);
+            }
+
+            function explodeFirework(firework) {
+                var particleCount = 100;
+                var angleIncrement = (Math.PI * 2) / particleCount;
+
+                for (var i = 0; i < particleCount; i++) {
+                    var angle = angleIncrement * i;
+                    var speed = Math.random() * 5 + 2;
+                    var color = getRandomColor();
+
+                    var vx = Math.cos(angle) * speed;
+                    var vy = Math.sin(angle) * speed;
+
+                    createParticle(firework.x, firework.y, color, vx, vy);
+                }
+            }
+
+            update();
+        };
+    </script>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+
+</html>

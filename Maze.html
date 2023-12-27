@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Maze V3</title>
+    <style>
+        #screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #miniMap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            height: 150px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="screen">
+        <canvas id="canvas"></canvas>
+        <canvas id="miniMap"></canvas>
+    </div>
+    <script type="text/javascript">
+        // Get the HTML element with the ID "canvas"
+        var canvas = document.getElementById("canvas");
+
+        // Retrieve the 2D rendering context of the canvas
+        var context = canvas.getContext("2d");
+
+        // Define an array called "maps" that holds different levels of mazes
+        // The numbers in the nested arrays represent different elements of the maze:
+        // 0: Empty space
+        // 1: Wall
+        // 2: Next level
+        // 3: Easter egg
+        // 4: End (finish)
+        var maps = [
+            // Level 1 - Small maze
+            [
+                [1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 1],
+                [1, 0, 1, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 1, 0, 1],
+                [1, 1, 1, 2, 1, 1, 1]
+            ],
+            // Level 2 - Medium maze
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 1],
+                [1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+                [1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1],
+                [1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1],
+                [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            // Level 3 - Harder maze
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 2, 0, 0, 1, 0, 0, 1],
+                [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1],
+                [1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1],
+                [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+                [1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1],
+                [1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ],
+            // Level 4 - Large maze and even harder
+            [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 4, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ]
+        ];
+
+
+        // Define the index of the current map
+        var currentMapIndex = 0;
+
+        // Define the player object with its properties
+        var player = {
+            x: 3, // Player's initial X position
+            y: 3.5, // Player's initial Y position
+            dir: 0, // Player's direction (angle in radians)
+            rot: 0, // Player's rotation (angle in radians)
+            speed: 0, // Player's movement speed
+            moveSpeed: 0.10, // Player's movement speed factor
+            rotSpeed: 2 * Math.PI / 180 // Player's rotation speed factor
+        };
+
+        // Define the screen dimensions based on the browser window size
+        var screenWidth = innerWidth; // Screen width
+        var screenHeight = innerHeight; // Screen height
+
+        // Define the width of each strip projected on the screen
+        var stripWidth = 2;
+
+        // Define the player's field of view (FOV) in radians
+        var fov = 60 * Math.PI / 180;
+
+        // Calculate the number of rays to cast based on screen width and strip width
+        var numRays = Math.ceil(screenWidth / stripWidth);
+
+        // Calculate half of the field of view
+        var fovHalf = fov / 2;
+
+        // Calculate the distance from the player to the projection plane
+        var viewDist = (screenWidth / 2) / Math.tan(fov / 2);
+
+        // Define a constant for the value of 2 * PI
+        var twoPI = Math.PI * 2;
+
+        // Initialize the game
+        function init() {
+            canvas.width = screenWidth; // Set the canvas width to match the screen width
+            canvas.height = screenHeight; // Set the canvas height to match the screen height
+
+            // Add code to initialize the mini map canvas
+            var miniMap = document.getElementById("miniMap");
+            miniMap.width = 150; // Set the mini map canvas width
+            miniMap.height = 150; // Set the mini map canvas height
+
+            bindKeys(); // Bind key events
+
+            gameCycle(); // Start the game cycle
+        }
+
+        // Bind key events for player movement
+        function bindKeys() {
+            document.onkeydown = function (e) {
+                e = e || window.event;
+
+                switch (e.keyCode) {
+                    case 38: // Up arrow key
+                        player.speed = 1; // Set player speed to move forward
+                        break;
+                    case 40: // Down arrow key
+                        player.speed = -1; // Set player speed to move backward
+                        break;
+                    case 37: // Left arrow key
+                        player.dir = -1; // Set player direction to rotate left
+                        break;
+                    case 39: // Right arrow key
+                        player.dir = 1; // Set player direction to rotate right
+                        break;
+                }
+            };
+
+            document.onkeyup = function (e) {
+                e = e || window.event;
+
+                switch (e.keyCode) {
+                    case 38: // Up arrow key
+                    case 40: // Down arrow key
+                        player.speed = 0; // Set player speed to stop
+                        break;
+                    case 37: // Left arrow key
+                    case 39: // Right arrow key
+                        player.dir = 0; // Set player direction to stop rotating
+                        break;
+                }
+            };
+        }
+
+        // The main game cycle
+        function gameCycle() {
+            move(); // Move the player
+            castRays(); // Cast rays for rendering
+            requestAnimationFrame(gameCycle); // Repeat the game cycle
+        }
+
+        // Move the player based on its speed and direction
+        function move() {
+            var moveStep = player.speed * player.moveSpeed; // Calculate the distance to move based on player speed
+            player.rot += player.dir * player.rotSpeed; // Update the player's rotation based on its direction
+
+            var newX = player.x + Math.cos(player.rot) * moveStep; // Calculate the new X position after movement
+            var newY = player.y + Math.sin(player.rot) * moveStep; // Calculate the new Y position after movement
+
+            if (isBlocking(newX, newY)) {
+                return; // Check if the new position is blocking (colliding with a wall)
+            }
+
+            player.x = newX; // Update the player's X position
+            player.y = newY; // Update the player's Y position
+        }
+
+        // Check if a given position is blocking (colliding with a wall)
+        function isBlocking(x, y) {
+            if (y < 0 || y >= maps[currentMapIndex].length || x < 0 || x >= maps[currentMapIndex][0].length) {
+                return true; // Check if the position is out of bounds
+            }
+
+            return maps[currentMapIndex][Math.floor(y)][Math.floor(x)] !== 0; // Check if the position is occupied by a wall
+        }
+
+        // Cast rays for rendering the scene
+        function castRays() {
+            context.clearRect(0, 0, screenWidth, screenHeight); // Clear the canvas
+
+            // Draw floor
+            context.fillStyle = "#000000"; // Set fill style to yellow
+            context.fillRect(0, screenHeight / 2, screenWidth, screenHeight / 2); // Fill the bottom half of the screen with color
+
+            // Draw ceiling
+            context.fillStyle = "#000000"; // Set fill style to blue
+            context.fillRect(0, 0, screenWidth, screenHeight / 2); // Fill the top half of the screen with color
+
+            for (var i = 0; i < numRays; i++) {
+                var rayScreenPos = (-numRays / 2 + i) * stripWidth; // Calculate the position of the current ray on the screen
+                var rayViewDist = Math.sqrt(rayScreenPos * rayScreenPos + viewDist * viewDist); // Calculate the distance from the player to the current ray
+                var rayAngle = Math.asin(rayScreenPos / rayViewDist); // Calculate the angle between the player's direction and the current ray
+
+                castSingleRay(player.rot + rayAngle, i); // Cast a single ray for the current angle
+
+                // Update the mini map with the player's position
+                updateMiniMap(player.x, player.y, player.rot);
+
+            }
+        }
+
+        // Define a variable to track the last mini map update time
+        var lastMiniMapUpdateTime = 0;
+
+        // Update the mini map only when necessary
+        function updateMiniMap(playerX, playerY, playerRot) {
+            var currentTime = performance.now(); // Get the current timestamp
+
+            // Check if enough time has elapsed since the last mini map update
+            if (currentTime - lastMiniMapUpdateTime < 100) {
+                return; // Exit the function if not enough time has passed
+            }
+
+            lastMiniMapUpdateTime = currentTime; // Update the last mini map update time
+
+            var miniMap = document.getElementById("miniMap");
+            var miniMapContext = miniMap.getContext("2d");
+
+            miniMapContext.clearRect(0, 0, miniMap.width, miniMap.height); // Clear the mini map canvas
+
+            // Calculate the scale factor for the mini map
+            // Get the dimensions of the current map
+            var mapWidth = maps[currentMapIndex][0].length;
+            var mapHeight = maps[currentMapIndex].length;
+
+            // Calculate the scale factors for the mini map
+            var scaleFactorX = miniMap.width / mapWidth;
+            var scaleFactorY = miniMap.height / mapHeight;
+
+            // Draw walls on the mini map
+            for (var y = 0; y < mapHeight; y++) {
+                for (var x = 0; x < mapWidth; x++) {
+                    if (maps[currentMapIndex][y][x] === 1) {
+                        miniMapContext.fillStyle = "#FFFFFF"; // Set the fill style to white for walls
+                        miniMapContext.fillRect(x * scaleFactorX, y * scaleFactorY, scaleFactorX, scaleFactorY); // Draw a wall on the mini map
+                    }
+                }
+            }
+
+            // Draw the player on the mini map
+            miniMapContext.fillStyle = "#FF0000"; // Set the fill style to red for the player
+            miniMapContext.fillRect(playerX * scaleFactorX - 3, playerY * scaleFactorY - 3, 6, 6); // Draw a rectangle representing the player on the mini map
+
+            // Draw the player's field of view on the mini map
+            miniMapContext.strokeStyle = "#FF0000"; // Set the stroke style to red for the player's field of view
+            miniMapContext.beginPath();
+            miniMapContext.moveTo(playerX * scaleFactorX, playerY * scaleFactorY);
+            miniMapContext.lineTo(
+                (playerX + Math.cos(playerRot) * 1) * scaleFactorX,
+                (playerY + Math.sin(playerRot) * 1) * scaleFactorY
+            );
+            miniMapContext.stroke();
+        }
+
+        function castSingleRay(rayAngle, stripIdx) {
+            rayAngle %= twoPI; // Normalize the ray angle to be within the range [0, twoPI]
+            if (rayAngle < 0) rayAngle += twoPI; // Make sure the ray angle is positive
+
+            var right = rayAngle > twoPI * 0.75 || rayAngle < twoPI * 0.25; // Check if the ray is pointing to the right
+            var up = rayAngle < 0 || rayAngle > Math.PI; // Check if the ray is pointing upwards
+
+            var wallType = 0; // Initialize the type of wall hit by the ray
+            var angleSin = Math.sin(rayAngle); // Calculate the sine of the ray angle
+            var angleCos = Math.cos(rayAngle); // Calculate the cosine of the ray angle
+
+            var dist = 0; // Initialize the distance to the wall hit by the ray
+            var xHit = 0; // X coordinate of the wall hit point
+            var yHit = 0; // Y coordinate of the wall hit point
+            var textureX; // X coordinate of the texture on the wall
+            var wallX; // X coordinate of the wall grid
+            var wallY; // Y coordinate of the wall grid
+            var wallIsHorizontal = false; // Flag to indicate if the wall hit is horizontal
+
+            var slope = angleSin / angleCos; // Calculate the slope of the ray
+            var dXVer = right ? 1 : -1; // Direction of the vertical step
+            var dYVer = dXVer * slope; // Vertical step size
+            var x = right ? Math.ceil(player.x) : Math.floor(player.x); // Starting X coordinate of the ray
+            var y = player.y + (x - player.x) * slope; // Starting Y coordinate of the ray
+
+            // Step horizontally and check for collisions with vertical walls
+            while (x >= 0 && x < maps[currentMapIndex][0].length && y >= 0 && y < maps[currentMapIndex].length) {
+                wallX = Math.floor(x + (right ? 0 : -1)); // X coordinate of the grid cell next to the wall
+                wallY = Math.floor(y); // Y coordinate of the grid cell
+
+                if (maps[currentMapIndex][wallY][wallX] > 0) {
+                    var distX = x - player.x; // X distance between player and wall hit
+                    var distY = y - player.y; // Y distance between player and wall hit
+                    dist = distX * distX + distY * distY; // Distance squared between player and wall hit
+                    wallType = maps[currentMapIndex][wallY][wallX]; // Type of wall hit
+                    textureX = y % 1; // Texture X coordinate based on fractional part of Y coordinate
+                    if (!right) textureX = 1 - textureX; // Adjust texture X coordinate if the ray is not pointing right
+
+                    xHit = x; // Store the X coordinate of the wall hit
+                    yHit = y; // Store the Y coordinate of the wall hit
+
+                    wallIsHorizontal = true; // Set the flag to indicate a horizontal wall hit
+
+                    break;
+                }
+                x += dXVer; // Move to the next horizontal grid cell
+                y += dYVer; // Adjust the Y coordinate based on the slope
+            }
+
+            slope = angleCos / angleSin; // Calculate the slope of the ray
+            var dYHor = up ? -1 : 1; // Direction of the horizontal step
+            var dXHor = dYHor * slope; // Horizontal step size
+            y = up ? Math.floor(player.y) : Math.ceil(player.y); // Starting Y coordinate of the ray
+            x = player.x + (y - player.y) * slope; // Starting X coordinate of the ray
+
+            // Step vertically and check for collisions with horizontal walls
+            while (x >= 0 && x < maps[currentMapIndex][0].length && y >= 0 && y < maps[currentMapIndex].length) {
+                wallY = Math.floor(y + (up ? -1 : 0)); // Y coordinate of the grid cell next to the wall
+                wallX = Math.floor(x); // X coordinate of the grid cell
+
+                if (maps[currentMapIndex][wallY][wallX] > 0) {
+                    var distX = x - player.x; // X distance between player and wall hit
+                    var distY = y - player.y; // Y distance between player and wall hit
+                    var blockDist = distX * distX + distY * distY; // Distance squared between player and wall hit
+
+                    if (!dist || blockDist < dist) {
+                        dist = blockDist; // Update the distance to the wall hit
+                        xHit = x; // Store the X coordinate of the wall hit
+                        yHit = y; // Store the Y coordinate of the wall hit
+
+                        wallType = maps[currentMapIndex][wallY][wallX]; // Update the wall type
+                        textureX = x % 1; // Texture X coordinate based on fractional part of X coordinate
+                        if (up) textureX = 1 - textureX; // Adjust texture X coordinate if the ray is pointing upwards
+                    }
+                    break;
+                }
+                x += dXHor; // Adjust the X coordinate based on the slope
+                y += dYHor; // Move to the next vertical grid cell
+            }
+
+            if (dist) {
+                var height = Math.round(viewDist / Math.sqrt(dist)); // Calculate the wall height based on the distance
+                var width = height * stripWidth; // Calculate the wall width
+                var top = Math.round((screenHeight - height) / 2); // Calculate the top position of the wall on the screen
+
+                var color;
+                switch (wallType) {
+                    case 1:
+                        color = "#c62a2a"; // Set color to red for wall type 1
+                        break;
+                    case 2:
+                        color = "#59c1ff"; // Set color to blue for wall type 2
+                        break;
+                    case 3:
+                        color = "#ffd700"; // Set color to yellow for wall type 3
+                        break;
+                    case 4:
+                        color = "#008000"; // Set color to green for wall type 4
+                        break;
+                    default:
+                        color = "#6c6c6c"; // Set color to gray for other wall types
+                        break;
+                }
+
+                // Apply distance-based darkening to the wall color
+                var maxDistance = 8; // Maximum distance for darkening
+                var distanceRatio = Math.min(dist / (maxDistance * maxDistance), 1); // Calculate the ratio of the distance to the maximum distance
+                var darkeningFactor = distanceRatio * 0.5; // Darkening factor based on the distance ratio
+                var darkenedColor = darkenColor(color, darkeningFactor); // Darken the color based on the darkening factor
+
+                context.fillStyle = darkenedColor; // Set the fill style to the darkened color
+                context.fillRect(stripIdx * stripWidth, top, stripWidth, height); // Draw the darkened wall segment on the canvas
+
+                if (wallType === 1 || wallType === 2 || wallType === 3 || wallType === 4) {
+                    // Calculate the brightness based on the distance
+                    var brightness = 1 - distanceRatio;
+
+                    // Adjust the color based on the brightness
+                    var r = Math.round(parseInt(color.slice(1, 3), 16) * brightness);
+                    var g = Math.round(parseInt(color.slice(3, 5), 16) * brightness);
+                    var b = Math.round(parseInt(color.slice(5, 7), 16) * brightness);
+
+                    // Convert the adjusted RGB values back to hexadecimal
+                    var adjustedHex = "#" + (r * 0x10000 + g * 0x100 + b).toString(16).padStart(6, '0');
+
+                    context.fillStyle = adjustedHex; // Set the fill style to the adjusted color
+                } else {
+                    context.fillStyle = color; // Set the fill style to the original color
+                }
+
+                context.fillRect(stripIdx * stripWidth, top, stripWidth, height); // Draw the wall segment on the canvas
+
+                // Check if near wall type 2
+                if (wallType === 2 && dist < 0.3 && isPlayerFacingWall(rayAngle)) {
+                    currentMapIndex = (currentMapIndex + 1) % maps.length; // Switch to the next map in the list
+                    resetPlayerPosition(); // Reset the player's position
+                    castRays(); // Recursively cast rays for the new map
+                }
+
+                // Check if near wall type 3
+                if (wallType === 3 && dist < 0.3 && isPlayerFacingWall(rayAngle)) {
+                    currentMapIndex = (currentMapIndex - 1 + maps.length) % maps.length; // Switch to the previous map in the list
+                    alert("Congratulations! You have found an easter egg."); // Show an alert message
+                    resetPlayerPosition(); // Reset the player's position
+                    castRays(); // Recursively cast rays for the new map
+                }
+
+                // Check if near wall type 4
+                if (wallType === 4 && dist < 0.3 && isPlayerFacingWall(rayAngle)) {
+                    currentMapIndex = 0; // Reset to the first map in the list
+                    alert("Congratulations! You finished the game."); // Show an alert message
+                    resetPlayerPosition(); // Reset the player's position
+                    castRays(); // Recursively cast rays for the new map
+                }
+            }
+        }
+
+        function darkenColor(color, factor) {
+            // Parse the color values
+            var hex = color.slice(1); // Remove the "#" from the color code
+            var rgb = parseInt(hex, 16); // Convert the hex color to decimal
+            var r = (rgb >> 16) & 0xff; // Extract the red component
+            var g = (rgb >> 8) & 0xff; // Extract the green component
+            var b = rgb & 0xff; // Extract the blue component
+
+            // Apply the darkening factor to each color component
+            r = Math.round(r * (1 - factor));
+            g = Math.round(g * (1 - factor));
+            b = Math.round(b * (1 - factor));
+
+            // Convert the darkened color back to hexadecimal
+            var darkenedHex = ((r << 16) | (g << 8) | b).toString(16); // Combine the RGB components and convert to decimal
+            darkenedHex = "000000".slice(0, 6 - darkenedHex.length) + darkenedHex; // Pad the hex color with zeros if needed
+
+            // Return the darkened color in hexadecimal format
+            return "#" + darkenedHex;
+        }
+
+        function isPlayerFacingWall(rayAngle) {
+            var playerAngle = player.rot % twoPI; // Normalize the player's rotation angle
+            if (playerAngle < 0) playerAngle += twoPI; // Make sure the player's angle is positive
+            var angleDiff = Math.abs(playerAngle - rayAngle); // Calculate the absolute difference between player's angle and ray angle
+            return angleDiff < Math.PI / 4 || angleDiff > (7 * Math.PI) / 4; // Check if the angle difference is within the threshold for facing a wall
+        }
+
+        function resetPlayerPosition() {
+            player.x = 4; // Reset the player's X position
+            player.y = 4; // Reset the player's Y position
+            player.rot = 4.7; // Reset the player's rotation angle
+        }
+
+        init(); // Initialize the game
+
+    </script>
+</body>
+
+</html>

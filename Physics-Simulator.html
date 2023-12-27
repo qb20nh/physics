@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Verlet Integration</title>
+  <style type="text/css">
+    html,
+    body {
+      margin: 0px;
+      padding: 0;
+      height: 100%;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 260px;
+      font-family: Arial, sans-serif;
+      z-index: 1;
+      position: absolute;
+      left: 10px;
+    }
+
+    .wrapper {
+      padding: 20px;
+      border-radius: 4px;
+      background-color: #ffffff70;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    textarea {
+      width: 400px;
+      height: 120px;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: vertical;
+      font-size: 14px;
+      background-color: #ffffff70;
+    }
+
+    label {
+      margin-right: 6px;
+    }
+
+    input {
+      width: 60px;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: #4caf50;
+      color: #ffffff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      background-color: yellow;
+    }
+  </style>
+
+  <script>
+    window.onload = function () {
+      // Get the canvas element and set up the rendering context
+      var canvas = document.getElementById("canvas"),
+        context = canvas.getContext("2d"),
+        width = canvas.width = window.innerWidth,
+        height = canvas.height = window.innerHeight;
+
+      // Define variables for points, sticks, and simulation parameters
+      var points = [],
+        sticks = [],
+        bounce = 0.9,
+        gravity = 0.5,
+        friction = 0.99;
+
+      // Get references to the shape input textarea and start button
+      var inputBox = document.getElementById("shape-input");
+      var bounceInput = document.getElementById("bounce-input");
+      var gravityInput = document.getElementById("gravity-input");
+      var frictionInput = document.getElementById("friction-input");
+
+      // Add event listeners to the input elements
+      inputBox.addEventListener("input", updateShape);
+      bounceInput.addEventListener("input", updateBounce);
+      gravityInput.addEventListener("input", updateGravity);
+      frictionInput.addEventListener("input", updateFriction);
+
+      // Add event listeners for mouse interaction
+      canvas.addEventListener("mousedown", handleMouseDown);
+      canvas.addEventListener("mousemove", handleMouseMove);
+      canvas.addEventListener("mouseup", handleMouseUp);
+
+      var isDragging = false;
+      var draggedPoint = null;
+
+      function startSimulation() {
+        // Clear the shape and start the simulation
+        clearShape();
+        createShape(inputBox.value);
+      }
+
+      function clearShape() {
+        // Reset points and sticks arrays
+        points = [];
+        sticks = [];
+      }
+
+      function createShape(shapeDescription) {
+        // Split the shape description into lines and parse each line
+        var lines = shapeDescription.split("\n");
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (line.length > 0 && line[0] !== "#") {
+            parseLine(line);
+          }
+        }
+      }
+
+      function parseLine(line) {
+        // Use regular expression to extract information from the line
+        var pointRegex = /([A-Za-z]+)\b/g;
+        var stickRegex = /([A-Za-z]+)\s*>\s*([A-Za-z]+)\s*\[\s*(\d+)\s*\]/;
+        var pointMatches = line.match(pointRegex);
+        var stickMatches = line.match(stickRegex);
+        if (pointMatches && pointMatches.length > 0) {
+          // Create points for each match
+          for (var i = 0; i < pointMatches.length; i++) {
+            var pointName = pointMatches[i];
+            findOrCreatePoint(pointName);
+          }
+        }
+        if (stickMatches && stickMatches.length === 4) {
+          // Extract point names and stick length from the matches
+          var pointA = findOrCreatePoint(stickMatches[1]);
+          var pointB = findOrCreatePoint(stickMatches[2]);
+          var length = parseInt(stickMatches[3]);
+          // Create a stick between the points with the given length
+          createStick(pointA, pointB, length);
+        }
+      }
+
+      function findOrCreatePoint(name) {
+        // Check if a point with the given name already exists, if not, create a new point
+        for (var i = 0; i < points.length; i++) {
+          if (points[i].name === name) {
+            return points[i];
+          }
+        }
+        return createPoint(name, width / 2, height / 2);
+      }
+
+      function createPoint(name, x, y) {
+        // Create a new point object with the given name and position
+        var point = {
+          name: name,
+          x: x,
+          y: y,
+          oldx: x + Math.random() * 30 - 15,
+          oldy: y + Math.random() * 30 - 15
+        };
+        points.push(point);
+        return point;
+      }
+
+      function createStick(pointA, pointB, length) {
+        // Create a new stick object between two points with the given length
+        var stick = {
+          p0: pointA,
+          p1: pointB,
+          length: length
+        };
+        sticks.push(stick);
+      }
+
+      function updateShape() {
+        // Update the shape based on the input
+        clearShape();
+        createShape(inputBox.value);
+      }
+
+      function updateBounce() {
+        // Update the bounce value based on the input
+        bounce = parseFloat(bounceInput.value);
+      }
+
+      function updateGravity() {
+        // Update the gravity value based on the input
+        gravity = parseFloat(gravityInput.value);
+      }
+
+      function updateFriction() {
+        // Update the friction value based on the input
+        friction = parseFloat(frictionInput.value);
+      }
+
+      function handleMouseDown(event) {
+        // Check if the user is clicking on an existing point
+        var x = event.clientX;
+        var y = event.clientY;
+        var clickedPoint = findPointAtPosition(x, y);
+
+        if (clickedPoint) {
+          // Start dragging the existing point
+          isDragging = true;
+          draggedPoint = clickedPoint;
+          draggedPoint.x = x;
+          draggedPoint.y = y;
+        }
+      }
+
+      function handleMouseMove(event) {
+        if (isDragging && draggedPoint) {
+          // Update the position of the dragged point based on the mouse position
+          draggedPoint.x = event.clientX;
+          draggedPoint.y = event.clientY;
+        }
+      }
+
+      function handleMouseUp() {
+        // Stop dragging
+        isDragging = false;
+        draggedPoint = null;
+      }
+
+      function findPointAtPosition(x, y) {
+        // Check if a point exists at the given position (within a certain threshold distance)
+        for (var i = 0; i < points.length; i++) {
+          var point = points[i];
+          var dx = point.x - x;
+          var dy = point.y - y;
+          var distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance <= 10) {
+            return point;
+          }
+        }
+        return null;
+      }
+
+      function update() {
+        // Update the positions of points and sticks, and render the simulation
+        updatePoints();
+        constrainPoints();
+        updateSticks();
+        render();
+        requestAnimationFrame(update);
+      }
+
+      function updatePoints() {
+        // Update the positions of points based on velocity and gravity
+        for (var i = 0; i < points.length; i++) {
+          var p = points[i],
+            vx = (p.x - p.oldx) * friction,
+            vy = (p.y - p.oldy) * friction;
+
+          p.oldx = p.x;
+          p.oldy = p.y;
+          p.x += vx;
+          p.y += vy;
+          p.y += gravity;
+        }
+      }
+
+      function constrainPoints() {
+        // Constrain the points within the canvas boundaries and apply bounce effect
+        for (var i = 0; i < points.length; i++) {
+          var p = points[i],
+            vx = (p.x - p.oldx) * friction,
+            vy = (p.y - p.oldy) * friction;
+
+          if (p.x > width) {
+            p.x = width;
+            p.oldx = p.x + vx * bounce;
+          } else if (p.x < 0) {
+            p.x = 0;
+            p.oldx = p.x + vx * bounce;
+          }
+          if (p.y > height) {
+            p.y = height;
+            p.oldy = p.y + vy * bounce;
+          } else if (p.y < 0) {
+            p.y = 0;
+            p.oldy = p.y + vy * bounce;
+          }
+        }
+      }
+
+      function updateSticks() {
+        // Update the lengths of sticks based on point positions
+        for (var i = 0; i < sticks.length; i++) {
+          var s = sticks[i],
+            dx = s.p1.x - s.p0.x,
+            dy = s.p1.y - s.p0.y,
+            distance = Math.sqrt(dx * dx + dy * dy),
+            difference = s.length - distance,
+            percent = difference / distance / 2,
+            offsetX = dx * percent * 0.3, // Limit the force applied to the stick
+            offsetY = dy * percent * 0.3; // Limit the force applied to the stick
+
+          s.p0.x -= offsetX;
+          s.p0.y -= offsetY;
+          s.p1.x += offsetX;
+          s.p1.y += offsetY;
+        }
+      }
+
+      function render() {
+        // Clear the canvas and render sticks and points
+        context.clearRect(0, 0, width, height);
+        renderGrid();
+        context.beginPath();
+        for (var i = 0; i < sticks.length; i++) {
+          var s = sticks[i];
+          context.moveTo(s.p0.x, s.p0.y);
+          context.lineTo(s.p1.x, s.p1.y);
+        }
+        context.strokeStyle = "#000";
+        context.stroke();
+
+        for (var i = 0; i < points.length; i++) {
+          var p = points[i];
+          context.beginPath();
+          context.arc(p.x, p.y, 5, 0, Math.PI * 2);
+          context.fillStyle = "#000";
+          context.fill();
+          context.fillText(p.name, p.x + 8, p.y - 8);
+        }
+      }
+
+      function renderGrid() {
+        // Render grid background
+        context.fillStyle = "#ccc";
+        context.lineWidth = 1;
+
+        // Draw vertical lines
+        for (var x = 0; x <= width; x += 100) {
+          context.beginPath();
+          context.moveTo(x, 0);
+          context.lineTo(x, height);
+          context.stroke();
+        }
+
+        // Draw horizontal lines
+        for (var y = 0; y <= height; y += 100) {
+          context.beginPath();
+          context.moveTo(0, y);
+          context.lineTo(width, y);
+          context.stroke();
+        }
+      }
+
+      // Start the simulation
+      startSimulation();
+      update();
+    };
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="wrapper">
+      <!-- Text area for entering the shape description -->
+      <textarea id="shape-input" placeholder="Enter shape description"></textarea>
+      <br>
+      <!-- Textboxes for changing simulation parameters -->
+      <label for="bounce-input">Bounce:</label>
+      <input id="bounce-input" type="number" min="0" max="1" step="0.1" value="0.9">
+      <label for="gravity-input">Gravity:</label>
+      <input id="gravity-input" type="number" min="-1" max="1" step="0.1" value="0.5">
+      <label for="friction-input">Friction:</label>
+      <input id="friction-input" type="number" min="0" max="1" step="0.01" value="0.99">
+    </div>
+  </div>
+
+  <!-- Canvas for rendering the simulation -->
+  <canvas id="canvas"></canvas>
+</body>
+
+</html>
