@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,14 +9,14 @@
     body {
       margin: 0;
       overflow: hidden;
-      background-color: #f0f0f0;
+      background-color: #ffffff;
     }
 
     canvas {
-      display: block;
-      margin: 0 auto;
-      background-color: #fff;
-      border: 5px solid black;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%) translateX(-50%);
+      left: 50%;
     }
 
     #controls {
@@ -28,89 +29,189 @@
     }
   </style>
 </head>
+
 <body>
   <div id="controls">
     <h2>Controls</h2>
-    <label>Gravity: <input type="range" id="gravityRange" min="-1" max="1" step="0.1" value="0"></label><br>
-    <label>Friction: <input type="range" id="frictionRange" min="0" max="1" step="0.01" value="0.99"></label><br>
-    <label>Circle Size: <input type="range" id="circleSizeRange" min="100" max="400" step="10" value="200"></label><br>
-    <label>Velocity Speed: <input type="range" id="velocitySpeedRange" min="1" max="10" step="1" value="5"></label><br>
+    <label>Gravity: <span id="gravityValue">0.1</span><br><input type="range" id="gravityRange" min="-1" max="1"
+        step="0.1" value="0.1"></label><br>
+    <label>Friction: <span id="frictionValue">1</span><br><input type="range" id="frictionRange" min="0" max="1"
+        step="0.01" value="1"></label><br>
+    <label>Ball Size: <span id="ballSizeValue">20</span><br><input type="range" id="ballSizeRange" min="5" max="100"
+        step="1" value="20"></label><br>
+    <label>Collide with Other Balls: <input type="checkbox" id="collideCheckbox"></label><br>
+    <label>Circle Size: <span id="circleSizeValue">200</span><br><input type="range" id="circleSizeRange" min="100"
+        max="400" step="10" value="200"></label><br>
+    <label>Shrink circle on Bounce: <input type="checkbox" id="shrinkOnBounceCheckbox"></label><br>
+    <label>Shrink Factor: <span id="shrinkFactorValue">0.99</span><br><input type="range" id="shrinkFactorRange"
+        min="0.95" max="0.999" step="0.001" value="0.99"></label><br>
+    <label>Grow ball on Bounce: <input type="checkbox" id="growOnBounceCheckbox"></label><br>
+    <label>Grow Factor: <span id="growFactorValue">1.010</span><br><input type="range" id="growFactorRange" min="1.001"
+        max="1.1" step="0.001" value="1.010"></label><br>
+    <label>Increase Velocity on Bounce: <input type="checkbox" id="increaseVelocityCheckbox"></label><br>
+    <label>Velocity Speed: <span id="velocitySpeedValue">5</span><br><input type="range" id="velocitySpeedRange" min="1"
+        max="300" step="1" value="5"></label><br>
+    <label>Velocity Increase Factor: <span id="velocityFactorValue">1.01</span><br><input type="range"
+        id="velocityFactorRange" min="1" max="1.5" step="0.01" value="1.01"></label><br>
     <label>Change Color on Bounce: <input type="checkbox" id="colorChangeCheckbox" checked></label><br>
-    <label>Random Force on Bounce: <input type="checkbox" id="randomForceCheckbox" checked></label><br>
+    <label>Rainbow Color on Ball: <input type="checkbox" id="rainbowColorCheckbox"></label><br>
+    <label>Random Force on Bounce: <input type="checkbox" id="randomForceCheckbox"></label><br>
     <label>Toggle Bounce Sound: <input type="checkbox" id="toggleSoundCheckbox" checked></label><br>
-    <label>Toggle Trail: <input type="checkbox" id="toggleTrailCheckbox" checked></label><br>
-    <label>Volume: <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1"></label><br>
-    <label>Pitch: <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1"></label><br>
+    <label>Custom Sound: <input type="file" id="customSoundInput" accept=".mp3, .wav"></label><br>
+    <label>Volume: <span id="volumeValue">1</span><br><input type="range" id="volumeRange" min="0" max="1" step="0.1"
+        value="1"></label><br>
+    <label>Pitch: <span id="pitchValue">1</span><br><input type="range" id="pitchRange" min="0.1" max="2" step="0.1"
+        value="1"></label><br>
     <label>Add Ball: <button onclick="addBall()">Add</button></label><br>
-    <label>Remove Ball: <button onclick="removeBall()">Remove</button></label>
+    <label>Add Ball on Click: <input type="checkbox" id="addOnClickCheckbox" checked></label><br>
+    <label>Add New Ball on Bounce: <input type="checkbox" id="addNewBallOnBounceCheckbox"></label><br>
+    <label>Remove Ball: <button onclick="removeBall()">Remove</button></label><br>
+    <label>Screen Shake on Bounce: <input type="checkbox" id="screenShakeCheckbox"></label><br>
   </div>
 
   <canvas id="physicsCanvas" width="800" height="800"></canvas>
 
   <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
     const canvas = document.getElementById("physicsCanvas");
     const ctx = canvas.getContext("2d");
 
     const balls = [];
-    const ballSounds = [];
+    let selectedBall = null;
+    const collideCheckbox = document.getElementById("collideCheckbox");
+    const addNewBallOnBounceCheckbox = document.getElementById("addNewBallOnBounceCheckbox");
+
+    addNewBallOnBounceCheckbox.addEventListener("change", function () {
+      addNewBallOnBounce = this.checked;
+    });
 
     // Circle properties
     let circleRadius = 200;
     const circleCenter = { x: canvas.width / 2, y: canvas.height / 2 };
 
     // Physics parameters
-    let gravity = 0;
-    let friction = 0.99;
+    let gravity = 0.1;
+    let friction = 1;
     let colorChangeEnabled = true;
-    let randomForceEnabled = true;
+    let rainbowColorEnabled = false;
+    let randomForceEnabled = false;
     let soundEnabled = true;
     let volume = 1;
     let pitch = 1;
-    let trailEnabled = true;
+    let addOnClick = true;
+    let ballSize = 20;
+    let customSoundFile = null;
+    let shrinkOnBounce = false;
+    let growOnBounce = false;
+    let screenShakeOnBounce = false;
+    let currentBallSize = ballSize;
+    let increaseVelocityOnBounce = false;
+    let shrinkFactor = 0.999;
+    let growFactor = 1.01;
+    let velocityIncreaseFactor = 1.01;
+    let enableBallCollisions = false;
+    let addNewBallOnBounce = false;
+
+    document.getElementById("customSoundInput").addEventListener("change", function () {
+      const fileInput = this;
+      const file = fileInput.files[0];
+      if (file) {
+        customSoundFile = URL.createObjectURL(file);
+        updateBounceSound();
+      }
+    });
+
+    document.getElementById("shrinkOnBounceCheckbox").addEventListener("change", function () {
+      shrinkOnBounce = this.checked;
+    });
+
+    document.getElementById("growOnBounceCheckbox").addEventListener("change", function () {
+      growOnBounce = this.checked;
+    });
+
+    document.getElementById("screenShakeCheckbox").addEventListener("change", function () {
+      screenShakeOnBounce = this.checked;
+    });
 
     function addBall() {
-      const ball = createBall();
-      balls.push(ball);
-      const sound = createBallSound();
-      ballSounds.push(sound);
+      balls.push(createBall());
     }
 
     function removeBall() {
       if (balls.length > 0) {
         balls.pop();
-        const sound = ballSounds.pop();
-        sound.pause();
-        sound.currentTime = 0;
       }
     }
 
-    function createBall() {
+    document.getElementById("addOnClickCheckbox").addEventListener("change", function () {
+      addOnClick = this.checked;
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (addOnClick) {
+        addBallAtMousePosition(e);
+      }
+    });
+
+    collideCheckbox.addEventListener("change", function () {
+      enableBallCollisions = this.checked;
+    });
+
+    function addBallAtMousePosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      balls.push(createBallAtPosition(mouseX, mouseY));
+    }
+
+    function createBallAtPosition(x, y) {
       return {
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        radius: 20,
+        x: x,
+        y: y,
+        radius: currentBallSize,
         mass: 5,
         color: getRandomColor(),
         velocity: {
           x: Math.random() * 2 - 1,
           y: Math.random() * 2 - 1
-        },
-        trail: []
+        }
       };
     }
 
-    function createBallSound() {
-      const bounceSound1 = document.createElement("audio");
-      bounceSound1.preload = "auto";
-      bounceSound1.innerHTML = '<source src="bounce1.mp3" type="audio/mpeg">';
-      document.body.appendChild(bounceSound1);
+    function createBall() {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * circleRadius;
 
-      const bounceSound2 = document.createElement("audio");
-      bounceSound2.preload = "auto";
-      bounceSound2.innerHTML = '<source src="bounce2.mp3" type="audio/mpeg">';
-      document.body.appendChild(bounceSound2);
+      return {
+        x: circleCenter.x + Math.cos(angle) * distance,
+        y: circleCenter.y + Math.sin(angle) * distance,
+        radius: currentBallSize,
+        mass: 5,
+        color: rainbowColorEnabled ? getRainbowColor() : getRandomColor(),
+        velocity: {
+          x: Math.cos(angle) * (Math.random() * 2 + 1),
+          y: Math.sin(angle) * (Math.random() * 2 + 1),
+        }
+      };
+    }
 
-      return [bounceSound1, bounceSound2];
+    // Create the audio buffer and source
+    let audioBuffer;
+    let audioSource;
+
+    function createBounceSound() {
+      const bounceSound = audioContext.createBufferSource();
+      return bounceSound;
+    }
+
+    function updateBounceSound() {
+      fetch(customSoundFile)
+        .then(response => response.arrayBuffer())
+        .then(buffer => audioContext.decodeAudioData(buffer))
+        .then(decodedBuffer => {
+          audioBuffer = decodedBuffer;
+        });
     }
 
     function getRandomColor() {
@@ -122,19 +223,133 @@
       return color;
     }
 
-    function playBallSound(index) {
-      if (soundEnabled) {
-        const sound = ballSounds[index][Math.floor(Math.random() * ballSounds[index].length)];
-        sound.volume = volume;
-        sound.playbackRate = pitch;
-        sound.currentTime = 0;
-        sound.play();
+    function getRainbowColor() {
+      const hue = (Date.now() * 0.05) % 360; // Change hue over time
+      const saturation = 100; // Full saturation
+      const lightness = 50; // Medium lightness
+
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    function playBounceSound() {
+      if (soundEnabled && circleRadius > currentBallSize) {
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = volume;
+
+        audioSource.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        audioSource.playbackRate.value = pitch;
+        audioSource.start();
       }
     }
 
     function applyRandomForce(ball) {
       ball.velocity.x += (Math.random() * 2 - 1) * 0.2;
       ball.velocity.y += (Math.random() * 2 - 1) * 0.2;
+    }
+
+    // Add an event listener for mouse down to start the drag-and-drop
+    canvas.addEventListener("mousedown", (e) => {
+      const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+      const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+
+      // Check if the mouse is over any existing ball
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+        const distance = Math.sqrt((mouseX - ball.x) ** 2 + (mouseY - ball.y) ** 2);
+
+        if (distance <= ball.radius) {
+          selectedBall = ball;
+          break; // Stop looping once we find the topmost ball
+        }
+      }
+    });
+
+    // Add an event listener for mouse up to end the drag-and-drop
+    canvas.addEventListener("mouseup", () => {
+      selectedBall = null;
+    });
+
+    // Add an event listener for mouse move to update the ball position during drag-and-drop
+    canvas.addEventListener("mousemove", (e) => {
+      if (selectedBall) {
+        selectedBall.x = e.clientX - canvas.getBoundingClientRect().left;
+        selectedBall.y = e.clientY - canvas.getBoundingClientRect().top;
+      }
+    });
+
+    // Function to handle ball-to-ball collisions
+    function handleBallCollisions() {
+      if (enableBallCollisions) {
+        for (let i = 0; i < balls.length; i++) {
+          for (let j = i + 1; j < balls.length; j++) {
+            const dx = balls[j].x - balls[i].x;
+            const dy = balls[j].y - balls[i].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < balls[i].radius + balls[j].radius) {
+              const overlap = (balls[i].radius + balls[j].radius) - distance;
+              const angle = Math.atan2(dy, dx);
+
+              // Move balls away from each other
+              const moveX = overlap * Math.cos(angle) * 0.5;
+              const moveY = overlap * Math.sin(angle) * 0.5;
+
+              balls[i].x -= moveX;
+              balls[i].y -= moveY;
+              balls[j].x += moveX;
+              balls[j].y += moveY;
+
+              // Normalized vector pointing from ball i to ball j
+              const nx = dx / distance;
+              const ny = dy / distance;
+
+              // Relative velocity components
+              const dvx = balls[j].velocity.x - balls[i].velocity.x;
+              const dvy = balls[j].velocity.y - balls[i].velocity.y;
+
+              // Dot product of relative velocity and normal vector
+              const dotProduct = dvx * nx + dvy * ny;
+
+              // Mass ratio
+              const m1 = balls[i].mass || 1; // default mass to 1 if not specified
+              const m2 = balls[j].mass || 1;
+
+              // Impulse scalar
+              const impulse = (2 * dotProduct) / (m1 + m2);
+
+              // Update velocities based on impulse
+              balls[i].velocity.x += impulse * m2 * nx;
+              balls[i].velocity.y += impulse * m2 * ny;
+              balls[j].velocity.x -= impulse * m1 * nx;
+              balls[j].velocity.y -= impulse * m1 * ny;
+            }
+          }
+        }
+      }
+    }
+
+    function addNewBallOnBounceFunction(bouncingBall) {
+      if (addNewBallOnBounce) {
+        const newBall = createBall();
+
+        // Set the new ball's position to a random position inside the circle
+        const angle = Math.random() * Math.PI * 2;
+        const randomRadius = Math.random() * (circleRadius - newBall.radius);
+        newBall.x = circleCenter.x + randomRadius * Math.cos(angle);
+        newBall.y = circleCenter.y + randomRadius * Math.sin(angle);
+
+        // Set the new ball's velocity to the bouncing ball's velocity
+        newBall.velocity.x = bouncingBall.velocity.x;
+        newBall.velocity.y = bouncingBall.velocity.y;
+
+        // Add the new ball to the balls array
+        balls.push(newBall);
+      }
     }
 
     function update() {
@@ -150,6 +365,13 @@
         ball.x += ball.velocity.x;
         ball.y += ball.velocity.y;
 
+        handleBallCollisions();
+
+        // Change color on bounce if the circle's radius is above the minimum value
+        if (rainbowColorEnabled && circleRadius > currentBallSize && ball.radius < circleRadius) {
+          ball.color = getRainbowColor();
+        }
+
         // Bounce off the walls inside the circle
         const distance = Math.sqrt((ball.x - circleCenter.x) ** 2 + (ball.y - circleCenter.y) ** 2);
         if (distance + ball.radius > circleRadius) {
@@ -157,33 +379,76 @@
           ball.x = circleCenter.x + (circleRadius - ball.radius) * Math.cos(angle);
           ball.y = circleCenter.y + (circleRadius - ball.radius) * Math.sin(angle);
 
-          // Change color on bounce
-          if (colorChangeEnabled) {
-            ball.color = getRandomColor();
-          }
-
           // Bounce effect
           const dotProduct = (ball.velocity.x * Math.cos(angle)) + (ball.velocity.y * Math.sin(angle));
           ball.velocity.x -= 2 * dotProduct * Math.cos(angle);
           ball.velocity.y -= 2 * dotProduct * Math.sin(angle);
+
+          // Add a new ball on bounce
+          addNewBallOnBounceFunction(ball);
+
+          // Change color on bounce if the circle's radius is above the minimum value
+          if (colorChangeEnabled && circleRadius > currentBallSize && ball.radius < circleRadius) {
+            ball.color = getRandomColor();
+          }
 
           // Apply random force
           if (randomForceEnabled) {
             applyRandomForce(ball);
           }
 
-          // Play sound
-          playBallSound(index);
-        }
-
-        // Trail
-        if (trailEnabled) {
-          ball.trail.push({ x: ball.x, y: ball.y });
-          if (ball.trail.length > 10) {
-            ball.trail.shift();
+          // Shrink on Bounce
+          if (shrinkOnBounce && circleRadius > currentBallSize) {
+            circleRadius *= shrinkFactor;
+          } else if (shrinkOnBounce && circleRadius <= currentBallSize) {
+            circleRadius = currentBallSize;
+            document.getElementById("toggleSoundCheckbox").checked = false;
+            document.getElementById("randomForceCheckbox").checked = false;
           }
+
+          // Grow on Bounce
+          if (growOnBounce && currentBallSize < 400 && circleRadius > currentBallSize) {
+            currentBallSize *= growFactor;
+            ball.radius = currentBallSize;
+          }
+
+          // Increase velocity on bounce
+          if (increaseVelocityOnBounce) {
+            ball.velocity.x *= velocityIncreaseFactor;
+            ball.velocity.y *= velocityIncreaseFactor;
+          }
+
+          // Screen Shake on Bounce
+          if (screenShakeOnBounce) {
+            const intensity = 5; // Adjust the intensity as needed
+            const duration = 300; // Adjust the duration as needed
+
+            // Calculate displacement based on bounce direction
+            const dx = intensity * Math.cos(angle);
+            const dy = intensity * Math.sin(angle);
+
+            screenShake(dx, dy, duration);
+          }
+
+          // Play sound
+          playBounceSound();
         }
       });
+    }
+
+    function screenShake(dx, dy, duration) {
+      const originalX = circleCenter.x;
+      const originalY = circleCenter.y;
+
+      // Move canvas temporarily
+      circleCenter.x += dx;
+      circleCenter.y += dy;
+
+      // Reset canvas position after duration
+      setTimeout(() => {
+        circleCenter.x = originalX;
+        circleCenter.y = originalY;
+      }, duration);
     }
 
     function draw() {
@@ -195,20 +460,7 @@
       ctx.stroke();
 
       // Draw balls
-      balls.forEach((ball, index) => {
-        // Draw trail
-        if (trailEnabled) {
-          ctx.fillStyle = ball.color;
-          ball.trail.forEach((point, index) => {
-            const alpha = index / ball.trail.length;
-            ctx.globalAlpha = alpha;
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, ball.radius, 0, Math.PI * 2);
-            ctx.fill();
-          });
-          ctx.globalAlpha = 1;
-        }
-
+      balls.forEach(ball => {
         ctx.fillStyle = ball.color;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
@@ -224,15 +476,30 @@
 
     document.getElementById("gravityRange").addEventListener("input", function () {
       gravity = parseFloat(this.value);
+      document.getElementById("gravityValue").innerText = gravity;
     });
 
     document.getElementById("frictionRange").addEventListener("input", function () {
       friction = parseFloat(this.value);
+      document.getElementById("frictionValue").innerText = friction;
     });
 
     document.getElementById("circleSizeRange").addEventListener("input", function () {
       circleRadius = parseInt(this.value);
+      document.getElementById("circleSizeValue").innerText = circleRadius;
     });
+
+    document.getElementById("ballSizeRange").addEventListener("input", function () {
+      currentBallSize = parseInt(this.value);
+      document.getElementById("ballSizeValue").innerText = currentBallSize;
+      updateBallSize();
+    });
+
+    function updateBallSize() {
+      balls.forEach(ball => {
+        ball.radius = currentBallSize;
+      });
+    }
 
     document.getElementById("velocitySpeedRange").addEventListener("input", function () {
       balls.forEach(ball => {
@@ -240,11 +507,24 @@
         const currentSpeed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2);
         ball.velocity.x = (ball.velocity.x / currentSpeed) * speed;
         ball.velocity.y = (ball.velocity.y / currentSpeed) * speed;
+        document.getElementById("velocitySpeedValue").innerText = speed;
       });
     });
 
     document.getElementById("colorChangeCheckbox").addEventListener("change", function () {
       colorChangeEnabled = this.checked;
+      if (colorChangeEnabled) {
+        rainbowColorEnabled = false;
+        document.getElementById("rainbowColorCheckbox").checked = false;
+      }
+    });
+
+    document.getElementById("rainbowColorCheckbox").addEventListener("change", function () {
+      rainbowColorEnabled = this.checked;
+      if (rainbowColorEnabled) {
+        colorChangeEnabled = false;
+        document.getElementById("colorChangeCheckbox").checked = false;
+      }
     });
 
     document.getElementById("randomForceCheckbox").addEventListener("change", function () {
@@ -257,19 +537,38 @@
 
     document.getElementById("volumeRange").addEventListener("input", function () {
       volume = parseFloat(this.value);
+      document.getElementById("volumeValue").innerText = volume;
     });
 
     document.getElementById("pitchRange").addEventListener("input", function () {
       pitch = parseFloat(this.value);
+      document.getElementById("pitchValue").innerText = pitch;
     });
 
-    document.getElementById("toggleTrailCheckbox").addEventListener("change", function () {
-      trailEnabled = this.checked;
+    document.getElementById("increaseVelocityCheckbox").addEventListener("change", function () {
+      increaseVelocityOnBounce = this.checked;
+    });
+
+    document.getElementById("shrinkFactorRange").addEventListener("input", function () {
+      shrinkFactor = parseFloat(this.value);
+      document.getElementById("shrinkFactorValue").innerText = shrinkFactor;
+    });
+
+    document.getElementById("growFactorRange").addEventListener("input", function () {
+      growFactor = parseFloat(this.value);
+      document.getElementById("growFactorValue").innerText = growFactor;
+    });
+
+    document.getElementById("velocityFactorRange").addEventListener("input", function () {
+      velocityIncreaseFactor = parseFloat(this.value);
+      document.getElementById("velocityFactorValue").innerText = velocityIncreaseFactor;
     });
 
     addBall(); // Start with one ball
 
     gameLoop();
+
   </script>
 </body>
+
 </html>
