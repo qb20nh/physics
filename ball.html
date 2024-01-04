@@ -353,6 +353,8 @@
     }
 
     function update() {
+      handleBallCollisions();
+
       balls.forEach((ball, index) => {
         // Apply gravity
         ball.velocity.y += gravity;
@@ -364,8 +366,6 @@
         // Update position
         ball.x += ball.velocity.x;
         ball.y += ball.velocity.y;
-
-        handleBallCollisions();
 
         // Change color on bounce if the circle's radius is above the minimum value
         if (rainbowColorEnabled && circleRadius > currentBallSize && ball.radius < circleRadius) {
